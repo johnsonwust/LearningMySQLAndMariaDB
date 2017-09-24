@@ -1,0 +1,608 @@
+
+--no need to logon mysql/MariaDB to backup database
+
+mysqldump -uhypStudy -pP@ssw0rd rookery birds > /tmp/birds.sql
+
+mysqldump -uhypStudy -pP@ssw0rd \
+rookery birds > /tmp/birds.sql
+
+mysqldump -uhypStudy -pP@ssw0rd test > test.sql
+mysqldump -uhypStudy -pP@ssw0rd birdwatchers > birdwatchers.sql
+mysqldump -uhypStudy -pP@ssw0rd rookery > rookery.sql
+
+mysqldump -uhypStudy -pP@ssw0rd \
+rookery > /tmp/rookery.sql
+
+--alter table
+ALTER TABLE bird_families
+ADD COLUMN order_id INT;
+
+//create a same table in test db as it in rookery
+CREATE TABLE test.birds_new LIKE birds;
+
+USE test;
+DESCRIBE birds_new;
+
+INSERT INTO birds_new
+SELECT * FROM rookery.birds;
+SELECT * FROM birds_new;
+
+//this way won't create primary key and auto_increment
+CREATE TABLE birds_new_alternative
+SELECT * FROM rookery.birds;
+
+SELECT * FROM birds_new_alternative;
+DROP TABLE birds_new_alternative;
+
+ALTER TABLE birds_new
+ ADD COLUMN wing_id CHAR(2);
+
+ALTER TABLE birds_new
+ DROP COLUMN wing_id;
+
+ALTER TABLE birds_new
+ ADD COLUMN wing_id CHAR(2) AFTER family_id;
+--ALTER TABLE birds_new
+-- ADD COLUMN wing_id CHAR(2) FIRST;
+
+ALTER TABLE birds_new
+ ADD COLUMN body_id CHAR(2) AFTER wing_id,
+ ADD COLUMN bill_id CHAR(2) AFTER body_id,
+ ADD COLUMN endangered BIT DEFAULT b'1' AFTER bill_id,
+ CHANGE COLUMN common_name common_name VARCHAR(255);
+
+UPDATE birds_new
+SET endangered=0
+WHERE bird_id in(1,2,4,5);
+
+SELECT bird_id, scientific_name, common_name
+FROM birds_new
+WHERE endangered \G
+
+SELECT * FROM birds_new WHERE NOT endangered \G
+
+//before modify, update endangered=1, or error
+ALTER TABLE birds_new
+MODIFY COLUMN endangered
+ENUM(
+    'Extinct',
+    'Extinct in wild',
+    'Threatened - Critically Endangered',
+    'Threatened - Endangered',
+    'Threatened - Vulnerable'
+) AFTER family_id;
+
+ALTER TABLE birds_new
+MODIFY COLUMN endangered
+ENUM(
+    'Extinct',
+    'Extinct in wild',
+    'Threatened - Critically Endangered',
+    'Threatened - Endangered',
+    'Threatened - Vulnerable',
+    'Lower Risk - Conservation Dependent',
+    'Lower Risk - Near Threatened',
+    'Lower Risk - Least Concern'
+) AFTER family_id;
+
+SHOW COLUMNS FROM birds_new LIKE 'endangered' \G
+
+UPDATE birds_new SET endangered=7;
+
+
+USE birdwatchers;
+
+CREATE TABLE surveys
+(
+    survey_id INT AUTO_INCREMENT KEY,
+    survey_name VARCHAR(255)
+);
+CREATE TABLE survey_questions
+(
+    question_id INT AUTO_INCREMENT KEY,
+    survey_id INT,
+    question VARCHAR(255),
+    choices BLOB
+);
+CREATE TABLE survey_answers
+(
+    answer_id INT AUTO_INCREMENT KEY,
+    human_id INT,
+    question_id INT,
+    date_answered DATETIME,
+    answer VARCHAR(255)
+);
+
+INSERT INTO surveys(survey_name)
+VALUES("Favorite Birding Location");
+INSERT INTO survey_questions(survey_id,question,choices)
+VALUES(
+    LAST_INSERT_ID(),
+    "What's your favorite setting for bird-watching?",
+    COLUMN_CREATE('1','forest','2','shore','3','backyard')
+);
+INSERT INTO surveys(survey_name)
+VALUES("Preferred Birds");
+INSERT INTO survey_questions(survey_id,question,choices)
+VALUES(
+    LAST_INSERT_ID(),
+    "Which type of birds do you like best?",
+    COLUMN_CREATE('1','perching','2','shore','3','fowl','4','rapture')
+);
+
+SELECT COLUMN_GET(choices, 3 AS CHAR) AS 'Location'
+FROM survey_questions
+WHERE survey_id=1;
+
+INSERT INTO survey_answers (human_id,question_id,date_answered,answer)
+VALUES
+(29,1,NOW(),2),
+(29,2,NOW(),2),
+(35,1,NOW(),1),
+(35,2,NOW(),1),
+(26,1,NOW(),2),
+(26,2,NOW(),1),
+(27,1,NOW(),2),
+(27,2,NOW(),4),
+(16,1,NOW(),3),
+(3,1,NOW(),1),
+(3,2,NOW(),1);
+
+SELECT IFNULL(COLUMN_GET(choices,answer AS CHAR),'total') AS 'Birding Site',
+       COUNT(*) AS 'Votes'
+FROM survey_answers
+JOIN survey_questions USING(question_id)
+WHERE survey_id=1
+  AND question_id=1
+GROUP BY answer WITH ROLLUP;
+
+--TRUNCATE TABLE survey_answers;
+
+USE rookery;
+CREATE TABLE conservation_status
+(
+    status_id INT AUTO_INCREMENT PRIMARY KEY,
+    conservation_category CHAR(10),
+    conservation_state CHAR(25)
+);
+
+INSERT INTO conservation_status(conservation_category,conservation_state)
+VALUES
+('Extinct', 'Extinct'),
+('Extinct', 'Extinct in wild'),
+('Threatened', 'Critically Endangered'),
+('Threatened', 'Endangered'),
+('Threatened', 'Vulnerable'),
+('Lower Risk', 'Conservation Dependent'),
+('Lower Risk', 'Near Threatened'),
+('Lower Risk', 'Least Concern');
+
+SELECT * FROM conservation_status;
+
+ALTER TABLE test.birds_new
+CHANGE COLUMN endangered conservation_status_id INT DEFAULT 8;
+
+ALTER TABLE test.birds_new
+ALTER conservation_status_id SET DEFAULT 7;
+--ALTER TABLE test.birds_new
+--ALTER conservation_status_id DROP DEFAULT;
+
+SHOW COLUMNS FROM test.birds_new LIKE 'conservation_status_id' \G
+
+SELECT auto_increment FROM information_schema.tables
+WHERE table_name='birds';
+
+ALTER TABLE birds
+AUTO_INCREMENT=10;
+
+
+CREATE TABLE birds_new LIKE birds;
+DESCRIBE birds;
+DESCRIBE birds_new;
+SELECT * FROM birds_new;
+
+ALTER TABLE birds
+AUTO_INCREMENT=7;
+
+//get the current table's auto_increment
+SHOW CREATE TABLE birds \G
+
+ALTER TABLE birds_new
+AUTO_INCREMENT=7;
+
+INSERT INTO birds_new
+(scientific_name,common_name,family_id,description)
+SELECT scientific_name,common_name,family_id,description FROM birds;
+
+CREATE TABLE birds_details
+SELECT bird_id, description FROM birds;
+
+DESCRIBE birds_details;
+
+ALTER TABLE birds
+DROP COLUMN description;
+
+RENAME TABLE birds TO birds_old,
+test.birds_new TO birds;
+
+SHOW TABLES LIKE 'birds%';
+SHOW TABLES IN rookery LIKE 'birds%';
+
+--DROP TABLE birds_old;
+
+
+
+CREATE TABLE country_codes (
+  code1 char(2) DEFAULT NULL,
+  code2 char(2) DEFAULT NULL,
+  code3 char(3) DEFAULT NULL,
+  country_name varchar(255) DEFAULT NULL,
+  country_name_italian varchar(255) DEFAULT NULL,
+  KEY code1 (code1),
+  KEY code2 (code2)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+INSERT INTO country_codes 
+VALUES 
+('af','AF','AFG','Afghanistan','Afghanistan'),
+('ax','AX','ALA','Ã…land',NULL),
+('al','AL','ALB','Albania','Albania'),
+('dz','DZ','DZA','Algeria','Algeria'),
+('as','AS','ASM','American Samoa','Samoa Americane'),
+('ad','AD','AND','Andorra','Andorra'),
+('ao','AO','AGO','Angola','Angola'),
+('ai','AI','AIA','Anguilla','Anguilla'),
+('aq',NULL,NULL,'Antarctica',NULL),
+('ag','AG','ATG','Antigua and Barbuda','Antigua e Barbuda'),
+('ar','AR','ARG','Argentina','Argentina'),
+('am','AM','ARM','Armenia','Armenia'),
+('aw','AW','ABW','Aruba','Aruba'),
+('ac',NULL,NULL,'Ascension Island',NULL),
+('au','AU','AUS','Australia','Australia'),
+('at','AT','AUT','Austria','Austria'),
+('az','AZ','AZE','Azerbaijan','Azerbaijan'),
+('bs','BS','BHS','Bahamas','Bahamas'),
+('bh','BH','BHR','Bahrain','Bahrain'),
+('bd','BD','BGD','Bangladesh','Bangladesh'),
+('bb','BB','BRB','Barbados','Barbados'),
+('by','BY','BLR','Belarus','Bielorussia'),
+('be','BE','BEL','Belgium','Belgio'),
+('bz','BZ','BLZ','Belize','Belize'),
+('bj','BJ','BEN','Benin','Benin'),
+('bm','BM','BMU','Bermuda','Bermuda'),
+('bt','BT','BTN','Bhutan','Bhutan'),
+('bo','BO','BOL','Bolivia','Bolivia'),
+('ba','BA','BIH','Bosnia and Herzegovina','Bosnia-Erzegovina'),
+('bw','BW','BWA','Botswana','Botswana'),
+('bv',NULL,NULL,'Bouvet Island',NULL),
+('br','BR','BRA','Brazil','Brasile'),
+('vg','IO','VGB','British Virgin Islands','Isole Vergini Britanniche'),
+('io',NULL,NULL,'British Indian Ocean Territory',NULL),
+('bn','BN','BRN','Brunei Darussalam','Brunei Darussalam'),
+('bg','BG','BGR','Bulgaria','Bulgaria'),
+('bf','BF','BFA','Burkina Faso','Burkina Faso'),
+('bi','BI','BDI','Burundi','Burundi'),
+('kh','KH','KHM','Cambodia','Cambogia'),
+('cm','CM','CMR','Cameroon','Camerun'),
+('ca','CA','CAN','Canada','Canada'),
+('cv','CV','CPV','Cape Verde','Capo Verde'),
+('ky','KY','CYM','Cayman Islands','Isole Cayman'),
+('cf','CF','CAF','Central African Republic','Repubblica Centroafricana'),
+('td','TD','TCD','Chad','Ciad'),
+('cl','CL','CHL','Chile','Cile'),
+('cn','CN','CHN','China','Cina'),
+('cx',NULL,NULL,'Christmas Island',NULL),
+('cc',NULL,NULL,'Cocos (Keeling) Island',NULL),
+('co','CO','COL','Colombia','Colombia'),
+('km','KM','COM','Comoros','Comore'),
+('cg','CG','COG','Republic of Congo','Repubblica del Congo'),
+('cd','CD','COD','Democratic Republic of Congo','Repubblica Democratica del Congo'),
+('ck','CK','COK','Cook Islands','Isole Cook'),
+('cr','CR','CRI','Costa Rica','Costa Rica'),
+('ci','CI','CIV','Cote d''Ivoire','Costa d''Avorio'),
+('hr','HR','HRV','Croatia','Croazia'),
+('cu','CU','CUB','Cuba','Cuba'),
+('cy','CY','CYP','Cyprus','Cipro'),
+('cz','CZ','CZE','Czech Republic','Repubblica Ceca'),
+('dk','DK','DNK','Denmark','Danimarca'),
+('dj','DJ','DJI','Djibouti','Gibuti'),
+('dm','DM','DMA','Dominica','Dominica'),
+('do','DO','DOM','Dominican Republic','Repubblica Dominicana'),
+('ec','EC','ECU','Ecuador','Ecuador'),
+('eg','EG','EGY','Egypt','Egitto'),
+('sv','SV','SLV','El Salvador','El Salvador'),
+('gq','GQ','GNQ','Equatorial Guinea','Guinea Equatoriale'),
+('er','ER','ERI','Eritrea','Eritrea'),
+('ee','EE','EST','Estonia','Estonia'),
+('et','ET','ETH','Ethiopia','Etiopia'),
+('fk','FK','FLK','Falkland Islands (Malvinas)','Isole Falkland'),
+('fo','FO','FRO','Faroe Islands','Isole Faroe'),
+('fj','FJ','FJI','Fiji','Fiji'),
+('fi','FI','FIN','Finland','Finlandia'),
+('fr','FR','FRA','France','Francia'),
+('gf','GF','GUF','French Guiana','Guyana Francese'),
+('pf','PF','PYF','French Polynesia','Polinesia Francese'),
+('tf',NULL,NULL,'French Southern Territories',NULL),
+('ga','GA','GAB','Gabon','Gabon'),
+('gm','GM','GMB','Gambia','Gambia'),
+('ge','GE','GEO','Georgia','Georgia'),
+('de','DE','DEU','Germany','Germania'),
+('gh','GH','GHA','Ghana','Ghana'),
+('gi','GI','GIB','Gibraltar','Gibilterra'),
+('gr','GR','GRC','Greece','Grecia'),
+('gl','GL','GRL','Greenland','Groenlandia'),
+('gd','GD','GRD','Grenada','Grenada'),
+('gp','GP','GLP','Guadeloupe','Guadalupa'),
+('gu','GU','GUM','Guam','Guam'),
+('gt','GT','GTM','Guatemala','Guatemala'),
+('gg','GG','GGY','Guernsey',NULL),
+('gn','GN','GIN','Guinea','Guinea'),
+('gw','GW','GNB','Guinea-Bissau','Guinea-Bissau'),
+('gy','GY','GUY','Guyana','Guyana'),
+('ht','HT','HTI','Haiti','Haiti'),
+('hm',NULL,NULL,'Heard and McDonald Islands',NULL),
+('hn','HN','HND','Honduras','Honduras'),
+('hk','HK','HKG','Hong Kong','Hong Kong'),
+('hu','HU','HUN','Hungary','Ungheria'),
+('is','IS','ISL','Iceland','Islanda'),
+('in','IN','IND','India','India'),
+('id','ID','IDN','Indonesia','Indonesia'),
+('ir','IR','IRN','Iran','Iran'),
+('iq','IQ','IRQ','Iraq','Iraq'),
+('ie','IE','IRL','Ireland','Eire'),
+('im','IM','IMN','Isle of Man','Isola di Man'),
+('il','IL','ISR','Israel','Israele'),
+('it','IT','ITA','Italy','Italia'),
+('jm','JM','JAM','Jamaica','Giamaica'),
+('jp','JP','JPN','Japan','Giappone'),
+('je','JE','JEY','Jersey',NULL),
+('jo','JO','JOR','Jordan','Giordania'),
+('kz','KZ','KAZ','Kazakhstan','Kazakistan'),
+('ke','KE','KEN','Kenya','Kenya'),
+('ki','KI','KIR','Kiribati','Kiribati'),
+('kp','KP','PRK','North Korea','Corea del Nord'),
+('kr','KR','KOR','South Korea','Corea del Sud'),
+('kw','KW','KWT','Kuwait','Kuwait'),
+('kg','KG','KGZ','Kyrgyzstan','Kirghizistan'),
+('la','LA','LAO','Laos','Laos'),
+('lv','LV','LVA','Latvia','Lettonia'),
+('lb','LB','LBN','Lebanon','Libano'),
+('ls','LS','LSO','Lesotho','Lesotho'),
+('lr','LR','LBR','Liberia','Liberia'),
+('ly','LY','LBY','Libya','Libia'),
+('li','LI','LIE','Liechtenstein','Liechtenstein'),
+('lt','LT','LTU','Lithuania','Lituania'),
+('lu','LU','LUX','Luxembourg','Lussemburgo'),
+('mo','MO','MAC','Macau','Macao'),
+('mk','MK','MKD','Macedonia','Macedonia'),
+('mg','MG','MDG','Madagascar','Madagascar'),
+('mw','MW','MWI','Malawi','Malawi'),
+('my','MY','MYS','Malaysia','Malesia'),
+('mv','MV','MDV','Maldives','Maldive'),
+('ml','ML','MLI','Mali','Mali'),
+('mt','MT','MLT','Malta','Malta'),
+('mh','MH','MHL','Marshall Islands','Isole Marshall'),
+('mq','MQ','MTQ','Martinique','Martinica'),
+('mr','MR','MRT','Mauritania','Mauritania'),
+('mu','MU','MUS','Mauritius','Mauritius'),
+('yt','YT','MYT','Mayotte','Mayotte'),
+('mx','MX','MEX','Mexico','Messico'),
+('fm','FM','FSM','Micronesia','Stati Federati della Micronesia'),
+('md','MD','MDA','Moldova','Moldavia'),
+('mc','MC','MCO','Monaco','Monaco'),
+('mn','MN','MNG','Mongolia','Mongolia'),
+('ms','MS','MSR','Montserrat','Montserrat'),
+('ma','MA','MAR','Morocco','Marocco'),
+('mz','MZ','MOZ','Mozambique','Mozambico'),
+('mm','MM','MMR','Myanmar','Myanmar'),
+('na','NA','NAM','Namibia','Namibia'),
+('nr','NR','NRU','Nauru','Nauru'),
+('np','NP','NPL','Nepal','Nepal'),
+('nl','NL','NLD','Netherlands','Paesi Bassi'),
+('an','AN','ANT','Netherlands Antilles','Antille Olandesi'),
+('nc','NC','NCL','New Caledonia','Nuova Caledonia'),
+('nz','NZ','NZL','New Zealand','Nuova Zelanda'),
+('ni','NI','NIC','Nicaragua','Nicaragua'),
+('nu','NU','NIU','Niue','Niue'),
+('ne','NE','NER','Niger','Niger'),
+('ng','NG','NGA','Nigeria','Nigeria'),
+('nf','NF','NFK','Norfolk Island','Isola Norfolk'),
+('mp','MP','MNP','Northern Mariana Islands','Isole Marianne Settentrionali'),
+('no','NO','NOR','Norway','Norvegia'),
+('om','OM','OMN','Oman','Oman'),
+('pk','PK','PAK','Pakistan','Pakistan'),
+('pw','PW','PLW','Palau','Palau'),
+('ps','PS','PSE','Occupied Palestinian Territory','Territori Palestinesi Occupati'),
+('pa','PA','PAN','Panama','PanamÃ¡'),
+('pg','PG','PNG','Papua New Guinea','Papua Nuova Guinea'),
+('py','PY','PRY','Paraguay','Paraguay'),
+('pe','PE','PER','Peru','PerÃ¹'),
+('ph','PH','PHL','Philippines','Filippine'),
+('pn','PN','PCN','Pitcairn Island','Pitcairn'),
+('pl','PL','POL','Poland','Polonia'),
+('pt','PT','PRT','Portugal','Portogallo'),
+('pr','PR','PRI','Puerto Rico','Porto Rico'),
+('qa','QA','QAT','Qatar','Qatar'),
+('re','RE','REU','Reunion','Reunion'),
+('ro','RO','ROU','Romania','Romania'),
+('ru','RU','RUS','Russia','Federazione Russa'),
+('rw','RW','RWA','Rwanda','Ruanda'),
+('sh','SH','SHN','Saint Helena','Sant''Elena'),
+('kn','KN','KNA','Saint Kitts and Nevis','Saint Kitts e Nevis'),
+('lc','LC','LCA','Saint Lucia','Santa Lucia'),
+('pm','PM','SPM','Saint Pierre and Miquelon','Saint Pierre e Miquelon'),
+('vc','VC','VCT','Saint Vincent and the Grenadines','Saint Vincent e Grenadine'),
+('ws','WS','WSM','Samoa','Samoa'),
+('sm','SM','SMR','San Marino','San Marino'),
+('st','ST','STP','Sao Tome and Principe','Sao Tome e Principe'),
+('sa','SA','SAU','Saudia Arabia','Arabia Saudita'),
+('sn','SN','SEN','Senegal','Senegal'),
+('cs','CS','SCG','Serbia',NULL),
+('sc','SC','SYC','Seychelles','Seychelles'),
+('sl','SL','SLE','Sierra Leone','Sierra Leone'),
+('sg','SG','SGP','Singapore','Singapore'),
+('sk','SK','SVK','Slovakia','Slovacchia'),
+('si','SI','SVN','Slovenia','Slovenia'),
+('sb','SB','SLB','Solomon Islands','Isole Solomon'),
+('so','SO','SOM','Somalia','Somalia'),
+('za','ZA','ZAF','South Africa','Sudafrica'),
+('gs',NULL,NULL,'South Georgia and the South Sandwich Islands',NULL),
+('es','ES','ESP','Spain','Spagna'),
+('lk','LK','LKA','Sri Lanka','Sri Lanka'),
+('sd','SD','SDN','Sudan','Sudan'),
+('sr','SR','SUR','Suriname','Suriname'),
+('sj','SJ','SJM','Svalbard and Jan Mayen Islands','Svalbard e Jan Mayen'),
+('sz','SZ','SWZ','Swaziland','Swaziland'),
+('se','SE','SWE','Sweden','Svezia'),
+('ch','CH','CHE','Switzerland','Svizzera'),
+('sy','SY','SYR','Syria','Siria'),
+('tw','TW','TWN','Taiwan','Taiwan'),
+('tj','TJ','TJK','Tajikistan','Tagikistan'),
+('tz','TZ','TZA','Tanzania','Tanzania'),
+('th','TH','THA','Thailand','Thailandia'),
+('tp','TL','TLS','Timor-Leste','Timor Est'),
+('tg','TG','TGO','Togo','Togo'),
+('tk',NULL,NULL,'Tokelau',NULL),
+('to','TO','TON','Tonga','Tonga'),
+('tt','TT','TTO','Trinidad and Tobago','Trinidad e Tobago'),
+('tn','TN','TUN','Tunisia','Tunisia'),
+('tr','TR','TUR','Turkey','Turchia'),
+('tm','TM','TKM','Turkmenistan','Turkmenistan'),
+('tc','TC','TCA','Turks and Caicos Islands','Isole Turks e Caicos'),
+('tv','TV','TUV','Tuvalu','Tuvalu'),
+('ug','UG','UGA','Uganda','Uganda'),
+('ua','UA','UKR','Ukraine','Ucraina'),
+('ae','AE','ARE','United Arab Emirates','Emirati Arabi Uniti'),
+('uk','GB','GBR','United Kingdom','Regno Unito'),
+('us','US','USA','United States of America','Stati Uniti d''America'),
+('vi','VI','VIR','United States Virgin Islands','Isole Vergini Americane'),
+('uy','UY','URY','Uruguay','Uruguay'),
+('um',NULL,NULL,'US Minor Outlying Islands',NULL),
+('su','SU','SUN','USSR',NULL),
+('uz','UZ','UZB','Uzbekistan','Uzbekistan'),
+('vu','VU','VUT','Vanuatu','Vanuatu'),
+('va','VA','VAT','Vatican City State (Holy See)','CittÃ  del Vaticano'),
+('ve','VE','VEN','Venezuela','Venezuela'),
+('vn','VN','VNM','Vietnam','Vietnam'),
+('wf','WF','WLF','Wallis and Futuna Islands','Wallis e Futuna'),
+('eh','EH','ESH','Western Sahara','Sahara Occidentale'),
+('ye','YE','YEM','Yemen','Yemen'),
+('yu','YU','YUG','Yugoslavia',NULL),
+('zm','ZM','ZMB','Zambia','Zambia'),
+('zw','ZW','ZWE','Zimbabwe','Zimbabwe');
+
+SELECT * FROM country_codes LIMIT 3;
+
+ALTER TABLE country_codes
+ORDER BY code1;
+SELECT * FROM country_codes LIMIT 3;
+
+SELECT * FROM country_codes 
+ORDER BY country_name
+LIMIT 3;
+
+
+SELECT * FROM conservation_status WHERE status_id>0;
+--//ERROR 1068 (42000): Multiple primary key defined
+ALTER TABLE conservation_status
+ CHANGE status_id conservation_status_id INT AUTO_INCREMENT PRIMARY KEY;
+
+
+SHOW INDEX FROM birdwatchers.humans \G
+
+EXPLAIN SELECT * FROM birdwatchers.humans WHERE name_last='Hollar' \G
+
+ALTER TABLE birdwatchers.humans
+ ADD INDEX human_names(name_last, name_first);
+
+SHOW CREATE TABLE birdwatchers.humans \G
+
+SHOW INDEX FROM birdwatchers.humans WHERE key_name='human_names' \G
+
+
+SHOW INDEX FROM conservation_status \G
+EXPLAIN SELECT * FROM conservation_status WHERE status_id>0 \G
+
+ALTER TABLE conservation_status
+ DROP PRIMARY KEY,
+CHANGE status_id conservation_status_id INT AUTO_INCREMENT PRIMARY KEY;
+
+SELECT * FROM conservation_status;
+EXPLAIN SELECT * FROM conservation_status WHERE conservation_status_id>0 \G
+
+
+
+Q&A:
+
+1.
+
+ALTER TABLE birds_details
+ ADD COLUMN migrate INT,
+ ADD COLUMN bird_feeder INT,
+ CHANGE COLUMN description bird_description TEXT;
+
+SHOW CREATE TABLE birds_details \G
+
+2.
+
+CREATE TABLE habitat_codes
+(
+    habit_id INT PRIMARY KEY AUTO_INCREMENT,
+    habitat VARCHAR(25)
+);
+
+INSERT INTO habitat_codes(habitat) VALUES
+('Coasts'),('Deserts'),('Forests'),('Grasslands'),('Lakes, Rivers, Ponds')
+,('Marshes, Swamps'),('Mountains'),('Oceans'),('Urban');
+
+SELECT * FROM habitat_codes;
+
+CREATE TABLE bird_habitats
+(
+    bird_id INT,
+    habitat_id INT
+);
+
+DESCRIBE habitat_codes;
+SHOW CREATE TABLE habitat_codes \G
+DESCRIBE bird_habitats;
+SHOW CREATE TABLE bird_habitats \G
+
+RENAME TABLE bird_habitats to birds_habitats;
+DESCRIBE birds_habitats;
+SHOW CREATE TABLE birds_habitats \G
+
+3.
+
+ALTER TABLE birds_habitats
+ ADD UNIQUE birds_habitats(bird_id, habitat_id);
+
+DESCRIBE birds_habitats;
+SHOW CREATE TABLE birds_habitats \G
+
+SELECT bird_id, common_name FROM birds;
+SELECT * FROM habitat_codes;
+
+INSERT INTO birds_habitats (bird_id, habitat_id) VALUES 
+(2,5),(3,5),(3,6);
+
+SELECT * FROM birds_habitats;
+
+ALTER TABLE birds_habitats
+DROP INDEX birds_habitats,
+ADD UNIQUE bird_habitat(bird_id, habitat_id);
+
+DESCRIBE birds_habitats;
+SHOW CREATE TABLE birds_habitats \G
+
+4.
+
+DESCRIBE humans;
+SHOW CREATE TABLE humans \G
+
+ALTER TABLE humans
+ADD COLUMN country_id CHAR(2),
+ADD COLUMN membership_type ENUM('basic', 'premium'),
+ADD COLUMN membership_expiration DATE;
+
+SHOW COLUMNS FROM humans LIKE 'membership_type' \G

@@ -1,0 +1,53 @@
+--check if mysql/mariadb installed
+--cmd
+tasklist /fi "IMAHENAME eq mysqld"
+
+mysqladmin -p version status
+
+--mysql service shutdown and remove
+mysqld -remove
+
+--not a service
+mysqladmin -u root -p shutdown
+
+--add mysql cmd into environment variables
+
+PATH=%PATH%;D:\Program\dev_tools\MariaDB 10.1\bin
+export PATH
+
+
+--reset root password
+
+--1. update config file : D:\Program\dev_tools\MariaDB 10.1\data\my.ini to skip the password input
+     --skip-grant-tables
+--2. restart mysql service
+--3. logon with mysqladmin
+     mysqladmin -u root
+     UPDATE　mysql.user SET password=password('P@ssw0rd') WHERE User='root';
+     flush privileges;
+     quit;
+--4. remove the changes in step 1
+--5. restart mysql service
+--6. logon with mysql
+     mysql -u root -p
+     P@ssw0rd
+     SELECT User,Host FROM mysql.user;
+--7. successfully;
+
+
+--delete some user unused
+DROP USER 'root'@'%';
+DROP USER ''@'localhost';
+
+--create some user with privileges
+GRANT USAGE ON *.*
+TO 'hypStudy'@'localhost'
+IDENTIFIED BY 'P@ssw0rd';
+
+GRANT SELECT ON *.*
+TO 'hypStudy'@'localhost';
+
+GRANT ALL ON *.*
+TO 'hypStudy'@'localhost';
+
+SELECT User,Host FROM mysql.user;

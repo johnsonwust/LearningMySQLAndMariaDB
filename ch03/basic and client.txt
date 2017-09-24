@@ -1,0 +1,39 @@
+
+--logon with new created account
+mysql -u hypStudy -p
+P@ssw0rd
+
+help;
+help contents;
+help Data Manipulation;
+help SHOW DATABASES;
+
+--change 'MariaDB [(none)]' to 'SQL Command (none)'
+prompt SQL Command \d>\_
+
+--check the installed DATABASES
+  -- if test db not exist, create using 'CREATE DATABASE test;'
+
+SHOW DATABASES;
+CREATE TABLE test.book (book_id INT, title TEXT, status INT);
+SHOW TABLES FROM test;
+
+USE test
+SHOW TABLES;
+DESCRIBE book;
+
+INSERT INTO book VALUES(100, 'Heart of Darkness', 0);
+INSERT INTO book VALUES(101, 'The Catcher of the Rye', 1);
+INSERT INTO book VALUES(102, 'My Antonia', 0);
+SELECT * FROM book;
+SELECT * FROM book WHERE status=1;
+SELECT * FROM book WHERE status=0 \G
+UPDATE book SET status=0 WHERE book_id=101;
+UPDATE book SET status=1,title='The Catcher in the Rye' WHERE book_id=101;
+
+CREATE TABLE status_names (status_id INT, status_name CHAR(8));
+INSERT INTO status_names  VALUES(0,'Inactive'),(1,'Active');
+SELECT * FROM status_names;
+SELECT book_id, title, status_name 
+FROM book JOIN status_names
+WHERE status=status_id;
