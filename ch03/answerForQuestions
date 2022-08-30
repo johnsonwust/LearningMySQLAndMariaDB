@@ -1,0 +1,56 @@
+show databases;
+
+create database test;
+
+describe test;
+
+use test;
+
+create table contacts (name char(15), phone_work char(15), phone_mobile char(15), email char(25), relation_id int);
+ 
+create table relation_type (relation_id int, relationship char(20)); 
+
+show tables from test;
+
+insert into relation_type values (0, 'Family'), (1, 'Friend'), (2, 'Colleague');
+
+select * from relationship;
+
+insert into contacts values ('Johnson', '1234453423', '32432512', 'johnson@gmail.com', 0), ('Tim', '433254943', '33449987', 'zhangsheng@qq.com', 1), ('Sam', '423941294', '34425433', 'qsam@outlook.com', 2), ('Mary', '23941294054', '85439324', 'mary@msn.com', 1);
+
+MariaDB [test]> select * from contacts;
++---------+-------------+--------------+-------------------+-------------+
+| name    | phone_work  | phone_mobile | email             | relation_id |
++---------+-------------+--------------+-------------------+-------------+
+| Johnson | 1234453423  | 32432512     | johnson@gmail.com |           0 |
+| Tim     | 433254943   | 33449987     | zhangsheng@qq.com |           1 |
+| Sam     | 423941294   | 34425433     | qsam@outlook.com  |           2 |
+| Mary    | 23941294054 | 85439324     | mary@msn.com      |           1 |
++---------+-------------+--------------+-------------------+-------------+
+4 rows in set (0.000 sec)
+
+update contacts set relation_id = 0, phone_work = '87889465' where name = 'Mary';
+
+MariaDB [test]> select * from contacts;
++---------+------------+--------------+-------------------+-------------+
+| name    | phone_work | phone_mobile | email             | relation_id |
++---------+------------+--------------+-------------------+-------------+
+| Johnson | 1234453423 | 32432512     | johnson@gmail.com |           0 |
+| Tim     | 433254943  | 33449987     | zhangsheng@qq.com |           1 |
+| Sam     | 423941294  | 34425433     | qsam@outlook.com  |           2 |
+| Mary    | 87889465   | 85439324     | mary@msn.com      |           0 |
++---------+------------+--------------+-------------------+-------------+
+4 rows in set (0.000 sec)
+
+MariaDB [test]> select name, phone_mobile, relationship from contacts JOIN relation_type WHERE contacts.relation_id = relation_type.relation_id;
++---------+--------------+--------------+
+| name    | phone_mobile | relationship |
++---------+--------------+--------------+
+| Johnson | 32432512     | Family       |
+| Tim     | 33449987     | Friend       |
+| Sam     | 34425433     | Colleague    |
+| Mary    | 85439324     | Family       |
++---------+--------------+--------------+
+4 rows in set (0.000 sec)
+
+
